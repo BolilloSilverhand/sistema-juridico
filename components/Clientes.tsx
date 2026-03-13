@@ -15,17 +15,16 @@ export default function Clientes() {
     direccion: ''
   });
 
-  async function fetchClientes() {
-    const { data } = await supabase
-      .from('clientes')
-      .select('*')
-      .order('nombre');
-    if (data) setClientes(data);
-  }
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchClientes();
+    const loadClientes = async () => {
+      const { data } = await supabase
+        .from('clientes')
+        .select('*')
+        .order('nombre');
+      if (data) setClientes(data);
+    };
+
+    void loadClientes();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +39,11 @@ export default function Clientes() {
         direccion: ''
       });
       setShowForm(false);
-      fetchClientes();
+      const { data } = await supabase
+        .from('clientes')
+        .select('*')
+        .order('nombre');
+      if (data) setClientes(data);
     }
   };
 
@@ -71,10 +74,11 @@ export default function Clientes() {
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Nuevo Cliente</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="cliente-nombre" className="block text-sm font-medium text-gray-700 mb-1">
                 Nombre Completo *
               </label>
               <input
+                id="cliente-nombre"
                 type="text"
                 required
                 value={formData.nombre}
@@ -84,10 +88,11 @@ export default function Clientes() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="cliente-email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
               <input
+                id="cliente-email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -96,10 +101,11 @@ export default function Clientes() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="cliente-telefono" className="block text-sm font-medium text-gray-700 mb-1">
                 Teléfono
               </label>
               <input
+                id="cliente-telefono"
                 type="tel"
                 value={formData.telefono}
                 onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
@@ -108,10 +114,11 @@ export default function Clientes() {
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="cliente-direccion" className="block text-sm font-medium text-gray-700 mb-1">
                 Dirección
               </label>
               <textarea
+                id="cliente-direccion"
                 value={formData.direccion}
                 onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
                 rows={2}
@@ -194,4 +201,3 @@ export default function Clientes() {
     </div>
   );
 }
-

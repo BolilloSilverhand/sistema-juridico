@@ -16,26 +16,18 @@ export default function Movimientos() {
     descripcion: ''
   });
 
-  async function fetchMovimientos() {
-    const { data } = await supabase
-      .from('movimientos')
-      .select('*')
-      .order('fecha', { ascending: false });
-    if (data) setMovimientos(data);
-  }
-
-  async function fetchExpedientes() {
-    const { data } = await supabase
-      .from('expedientes')
-      .select('*')
-      .order('numero_expediente');
-    if (data) setExpedientes(data);
-  }
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchMovimientos();
-    fetchExpedientes();
+    const loadData = async () => {
+      const [{ data: movimientosData }, { data: expedientesData }] = await Promise.all([
+        supabase.from('movimientos').select('*').order('fecha', { ascending: false }),
+        supabase.from('expedientes').select('*').order('numero_expediente')
+      ]);
+
+      if (movimientosData) setMovimientos(movimientosData);
+      if (expedientesData) setExpedientes(expedientesData);
+    };
+
+    void loadData();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,7 +42,11 @@ export default function Movimientos() {
         descripcion: ''
       });
       setShowForm(false);
-      fetchMovimientos();
+      const { data } = await supabase
+        .from('movimientos')
+        .select('*')
+        .order('fecha', { ascending: false });
+      if (data) setMovimientos(data);
     }
   };
 
@@ -85,10 +81,11 @@ export default function Movimientos() {
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Nuevo Movimiento</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="movimiento-expediente" className="block text-sm font-medium text-gray-700 mb-1">
                 Expediente *
               </label>
               <select
+                id="movimiento-expediente"
                 required
                 value={formData.expediente_id}
                 onChange={(e) => setFormData({ ...formData, expediente_id: e.target.value })}
@@ -104,10 +101,11 @@ export default function Movimientos() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="movimiento-fecha" className="block text-sm font-medium text-gray-700 mb-1">
                 Fecha *
               </label>
               <input
+                id="movimiento-fecha"
                 type="date"
                 required
                 value={formData.fecha}
@@ -117,10 +115,11 @@ export default function Movimientos() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="movimiento-tipo" className="block text-sm font-medium text-gray-700 mb-1">
                 Tipo *
               </label>
               <select
+                id="movimiento-tipo"
                 value={formData.tipo}
                 onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-900 focus:border-transparent"
@@ -135,10 +134,11 @@ export default function Movimientos() {
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="movimiento-descripcion" className="block text-sm font-medium text-gray-700 mb-1">
                 Descripción *
               </label>
               <textarea
+                id="movimiento-descripcion"
                 required
                 value={formData.descripcion}
                 onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
@@ -223,4 +223,3 @@ export default function Movimientos() {
     </div>
   );
 }
-

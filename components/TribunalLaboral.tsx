@@ -15,17 +15,16 @@ export default function TribunalLaboralComponent() {
     email: ''
   });
 
-  async function fetchTribunales() {
-    const { data } = await supabase
-      .from('tribunal_laboral')
-      .select('*')
-      .order('nombre');
-    if (data) setTribunales(data);
-  }
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchTribunales();
+    const loadTribunales = async () => {
+      const { data } = await supabase
+        .from('tribunal_laboral')
+        .select('*')
+        .order('nombre');
+      if (data) setTribunales(data);
+    };
+
+    void loadTribunales();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +39,11 @@ export default function TribunalLaboralComponent() {
         email: ''
       });
       setShowForm(false);
-      fetchTribunales();
+      const { data } = await supabase
+        .from('tribunal_laboral')
+        .select('*')
+        .order('nombre');
+      if (data) setTribunales(data);
     }
   };
 
@@ -70,10 +73,11 @@ export default function TribunalLaboralComponent() {
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Nuevo Tribunal</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="tribunal-nombre" className="block text-sm font-medium text-gray-700 mb-1">
                 Nombre del Tribunal *
               </label>
               <input
+                id="tribunal-nombre"
                 type="text"
                 required
                 value={formData.nombre}
@@ -83,10 +87,11 @@ export default function TribunalLaboralComponent() {
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="tribunal-direccion" className="block text-sm font-medium text-gray-700 mb-1">
                 Dirección *
               </label>
               <textarea
+                id="tribunal-direccion"
                 required
                 value={formData.direccion}
                 onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
@@ -96,10 +101,11 @@ export default function TribunalLaboralComponent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="tribunal-telefono" className="block text-sm font-medium text-gray-700 mb-1">
                 Teléfono
               </label>
               <input
+                id="tribunal-telefono"
                 type="tel"
                 value={formData.telefono}
                 onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
@@ -108,10 +114,11 @@ export default function TribunalLaboralComponent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="tribunal-email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
               <input
+                id="tribunal-email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -194,4 +201,3 @@ export default function TribunalLaboralComponent() {
     </div>
   );
 }
-

@@ -18,26 +18,18 @@ export default function Expedientes() {
     cliente_id: ''
   });
 
-  async function fetchExpedientes() {
-    const { data } = await supabase
-      .from('expedientes')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (data) setExpedientes(data);
-  }
-
-  async function fetchClientes() {
-    const { data } = await supabase
-      .from('clientes')
-      .select('*')
-      .order('nombre');
-    if (data) setClientes(data);
-  }
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchExpedientes();
-    fetchClientes();
+    const loadData = async () => {
+      const [{ data: expedientesData }, { data: clientesData }] = await Promise.all([
+        supabase.from('expedientes').select('*').order('created_at', { ascending: false }),
+        supabase.from('clientes').select('*').order('nombre')
+      ]);
+
+      if (expedientesData) setExpedientes(expedientesData);
+      if (clientesData) setClientes(clientesData);
+    };
+
+    void loadData();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +49,11 @@ export default function Expedientes() {
         cliente_id: ''
       });
       setShowForm(false);
-      fetchExpedientes();
+      const { data } = await supabase
+        .from('expedientes')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (data) setExpedientes(data);
     }
   };
 
@@ -88,10 +84,11 @@ export default function Expedientes() {
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Nuevo Expediente</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="expediente-numero" className="block text-sm font-medium text-gray-700 mb-1">
                 Número de Expediente *
               </label>
               <input
+                id="expediente-numero"
                 type="text"
                 required
                 value={formData.numero_expediente}
@@ -101,10 +98,11 @@ export default function Expedientes() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="expediente-cliente" className="block text-sm font-medium text-gray-700 mb-1">
                 Cliente
               </label>
               <select
+                id="expediente-cliente"
                 value={formData.cliente_id}
                 onChange={(e) => setFormData({ ...formData, cliente_id: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-900 focus:border-transparent"
@@ -119,10 +117,11 @@ export default function Expedientes() {
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="expediente-partes" className="block text-sm font-medium text-gray-700 mb-1">
                 Partes *
               </label>
               <input
+                id="expediente-partes"
                 type="text"
                 required
                 value={formData.partes}
@@ -133,10 +132,11 @@ export default function Expedientes() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="expediente-juzgado" className="block text-sm font-medium text-gray-700 mb-1">
                 Juzgado *
               </label>
               <input
+                id="expediente-juzgado"
                 type="text"
                 required
                 value={formData.juzgado}
@@ -146,10 +146,11 @@ export default function Expedientes() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="expediente-estatus" className="block text-sm font-medium text-gray-700 mb-1">
                 Estatus *
               </label>
               <select
+                id="expediente-estatus"
                 value={formData.estatus}
                 onChange={(e) => setFormData({ ...formData, estatus: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-900 focus:border-transparent"
@@ -163,10 +164,11 @@ export default function Expedientes() {
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="expediente-notas" className="block text-sm font-medium text-gray-700 mb-1">
                 Notas y Pendientes
               </label>
               <textarea
+                id="expediente-notas"
                 value={formData.notas}
                 onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
                 rows={4}
@@ -244,7 +246,7 @@ export default function Expedientes() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       exp.estatus === 'Activo' ? 'bg-green-100 text-green-800' :
-                      exp.estatus === 'En trÃ¡mite' ? 'bg-blue-100 text-blue-800' :
+                      exp.estatus === 'En trámite' ? 'bg-blue-100 text-blue-800' :
                       exp.estatus === 'Suspendido' ? 'bg-yellow-100 text-yellow-800' :
                       exp.estatus === 'Concluido' ? 'bg-gray-100 text-gray-800' :
                       'bg-red-100 text-red-800'
@@ -264,4 +266,3 @@ export default function Expedientes() {
     </div>
   );
 }
-
