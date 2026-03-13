@@ -1,56 +1,61 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase, type Cliente } from '@/lib/supabase';
-import { Plus, Users, Search } from 'lucide-react';
+import { useState } from 'react';
+import type { Cliente } from '@/lib/supabase';
+import { Plus, Search, Users } from 'lucide-react';
+
+const initialClientes: Cliente[] = [
+  {
+    id: 'c1',
+    nombre: 'Juan Perez',
+    email: 'juan@example.com',
+    telefono: '555-100-2000',
+    direccion: 'Av. Reforma 100, CDMX',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'c2',
+    nombre: 'Maria Lopez',
+    email: 'maria@example.com',
+    telefono: '555-300-4000',
+    direccion: 'Col. Centro, Puebla',
+    created_at: new Date().toISOString(),
+  },
+];
 
 export default function Clientes() {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>(initialClientes);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
     telefono: '',
-    direccion: ''
+    direccion: '',
   });
 
-  useEffect(() => {
-    const loadClientes = async () => {
-      const { data } = await supabase
-        .from('clientes')
-        .select('*')
-        .order('nombre');
-      if (data) setClientes(data);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const nuevoCliente: Cliente = {
+      id: crypto.randomUUID(),
+      nombre: formData.nombre,
+      email: formData.email || undefined,
+      telefono: formData.telefono || undefined,
+      direccion: formData.direccion || undefined,
+      created_at: new Date().toISOString(),
     };
 
-    void loadClientes();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { error } = await supabase.from('clientes').insert([formData]);
-
-    if (!error) {
-      setFormData({
-        nombre: '',
-        email: '',
-        telefono: '',
-        direccion: ''
-      });
-      setShowForm(false);
-      const { data } = await supabase
-        .from('clientes')
-        .select('*')
-        .order('nombre');
-      if (data) setClientes(data);
-    }
+    setClientes((prev) => [nuevoCliente, ...prev]);
+    setFormData({ nombre: '', email: '', telefono: '', direccion: '' });
+    setShowForm(false);
   };
 
-  const filteredClientes = clientes.filter(cliente =>
-    cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.telefono?.includes(searchTerm)
+  const filteredClientes = clientes.filter(
+    (cliente) =>
+      cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.telefono?.includes(searchTerm),
   );
 
   return (
@@ -102,7 +107,7 @@ export default function Clientes() {
 
             <div>
               <label htmlFor="cliente-telefono" className="block text-sm font-medium text-gray-700 mb-1">
-                Teléfono
+                Telefono
               </label>
               <input
                 id="cliente-telefono"
@@ -115,7 +120,7 @@ export default function Clientes() {
 
             <div className="col-span-2">
               <label htmlFor="cliente-direccion" className="block text-sm font-medium text-gray-700 mb-1">
-                Dirección
+                Direccion
               </label>
               <textarea
                 id="cliente-direccion"
@@ -163,35 +168,19 @@ export default function Clientes() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  Nombre
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  Telófono
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  Dirección
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Nombre</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Telefono</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Direccion</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredClientes.map((cliente) => (
                 <tr key={cliente.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {cliente.nombre}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {cliente.email || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {cliente.telefono || '-'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {cliente.direccion || '-'}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{cliente.nombre}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{cliente.email || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{cliente.telefono || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{cliente.direccion || '-'}</td>
                 </tr>
               ))}
             </tbody>
