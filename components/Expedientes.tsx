@@ -4,10 +4,48 @@ import { useEffect, useState } from 'react';
 import { supabase, type Cliente, type Expediente, type Movimiento } from '@/lib/supabase';
 import { ChevronDown, ChevronUp, FileText, Plus, Search, Trash2 } from 'lucide-react';
 
+const initialClientes: Cliente[] = [
+  {
+    id: 'cli-seed-1',
+    nombre: 'Carlos Ramirez',
+    email: 'carlos@example.com',
+    telefono: '555-101-2020',
+    direccion: 'Col. Centro',
+    monto_pactado: 12000,
+    total_adeudo: 8000,
+    created_at: new Date().toISOString(),
+  },
+];
+
+const initialExpedientes: Expediente[] = [
+  {
+    id: 'exp-seed-1',
+    numero_expediente: 'EXP-2026-001',
+    partes: 'Carlos Ramirez vs Empresa Delta',
+    juzgado: 'Juzgado Primero Laboral',
+    estatus: 'Activo',
+    notas: 'Revision de pruebas pendientes.',
+    cliente_id: 'cli-seed-1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+const initialMovimientos: Movimiento[] = [
+  {
+    id: 'mov-seed-1',
+    expediente_id: 'exp-seed-1',
+    fecha: new Date().toISOString().split('T')[0],
+    tipo: 'Audiencia inicial',
+    descripcion: 'Se recibio escrito de contestacion.',
+    created_at: new Date().toISOString(),
+  },
+];
+
 export default function Expedientes() {
-  const [expedientes, setExpedientes] = useState<Expediente[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+  const [expedientes, setExpedientes] = useState<Expediente[]>(initialExpedientes);
+  const [clientes, setClientes] = useState<Cliente[]>(initialClientes);
+  const [movimientos, setMovimientos] = useState<Movimiento[]>(initialMovimientos);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedExpId, setExpandedExpId] = useState<string | null>(null);

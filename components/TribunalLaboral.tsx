@@ -2,8 +2,29 @@ import { useState, useEffect } from 'react';
 import { supabase, type TribunalLaboral } from '../lib/supabase';
 import { Plus, Landmark, Search, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 
+const initialTribunales: TribunalLaboral[] = [
+  {
+    id: 'trib-1',
+    nombre: 'Tribunal Laboral Centro',
+    direccion: 'Av. Juarez 120, Centro',
+    telefono: '555-777-1100',
+    email: 'centro@tribunal.local',
+    hoja_no_conciliacion: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'trib-2',
+    nombre: 'Tribunal Laboral Norte',
+    direccion: 'Blvd. Norte 45',
+    telefono: '555-888-2200',
+    email: 'norte@tribunal.local',
+    hoja_no_conciliacion: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
 export default function TribunalLaboralComponent() {
-  const [tribunales, setTribunales] = useState<TribunalLaboral[]>([]);
+  const [tribunales, setTribunales] = useState<TribunalLaboral[]>(initialTribunales);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedTribId, setExpandedTribId] = useState<string | null>(null);

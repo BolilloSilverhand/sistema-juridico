@@ -2,10 +2,66 @@ import { useState, useEffect } from 'react';
 import { supabase, type Cliente, type ClienteMovimiento, type Expediente } from '../lib/supabase';
 import { Plus, Users, Search, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 
+const initialClientes: Cliente[] = [
+  {
+    id: 'cli-1',
+    nombre: 'Roberto Mendez',
+    email: 'roberto@example.com',
+    telefono: '555-333-1010',
+    direccion: 'Zona Norte',
+    monto_pactado: 15000,
+    total_adeudo: 9000,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'cli-2',
+    nombre: 'Lucia Herrera',
+    email: 'lucia@example.com',
+    telefono: '555-444-2020',
+    direccion: 'Col. Reforma',
+    monto_pactado: 10000,
+    total_adeudo: 4000,
+    created_at: new Date().toISOString(),
+  },
+];
+
+const initialExpedientes: Expediente[] = [
+  {
+    id: 'exp-cli-1',
+    numero_expediente: 'EXP-2026-021',
+    partes: 'Roberto Mendez vs Taller Omega',
+    juzgado: 'Juzgado Tercero',
+    estatus: 'Activo',
+    notas: 'Seguimiento semanal',
+    cliente_id: 'cli-1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+const initialMovimientos: ClienteMovimiento[] = [
+  {
+    id: 'cm-1',
+    cliente_id: 'cli-1',
+    tipo: 'cargo',
+    monto: 3000,
+    descripcion: 'Apertura de expediente',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'cm-2',
+    cliente_id: 'cli-1',
+    tipo: 'abono',
+    monto: 1000,
+    descripcion: 'Primer abono',
+    created_at: new Date().toISOString(),
+  },
+];
+
 export default function Clientes() {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [expedientes, setExpedientes] = useState<Expediente[]>([]);
-  const [movimientos, setMovimientos] = useState<ClienteMovimiento[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>(initialClientes);
+  const [expedientes, setExpedientes] = useState<Expediente[]>(initialExpedientes);
+  const [movimientos, setMovimientos] = useState<ClienteMovimiento[]>(initialMovimientos);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);

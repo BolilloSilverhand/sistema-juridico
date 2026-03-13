@@ -2,9 +2,42 @@ import { useState, useEffect } from 'react';
 import { supabase, type Movimiento, type Expediente } from '../lib/supabase';
 import { Plus, FileCheck, Search } from 'lucide-react';
 
+const initialExpedientes: Expediente[] = [
+  {
+    id: 'exp-mov-1',
+    numero_expediente: 'EXP-2026-010',
+    partes: 'Ana Torres vs Comercial Nova',
+    juzgado: 'Juzgado Segundo',
+    estatus: 'Activo',
+    notas: 'En etapa probatoria',
+    cliente_id: 'cli-x',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+const initialMovimientos: Movimiento[] = [
+  {
+    id: 'mov-1',
+    expediente_id: 'exp-mov-1',
+    fecha: new Date().toISOString().split('T')[0],
+    tipo: 'Presentacion de pruebas',
+    descripcion: 'Se agrego documental privada.',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'mov-2',
+    expediente_id: 'exp-mov-1',
+    fecha: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    tipo: 'Acuerdo',
+    descripcion: 'Se fijo nueva fecha de audiencia.',
+    created_at: new Date().toISOString(),
+  },
+];
+
 export default function Movimientos() {
-  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
-  const [expedientes, setExpedientes] = useState<Expediente[]>([]);
+  const [movimientos, setMovimientos] = useState<Movimiento[]>(initialMovimientos);
+  const [expedientes, setExpedientes] = useState<Expediente[]>(initialExpedientes);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
