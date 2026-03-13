@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Sistema Juridico",
-  description: "Administracion legal profesional",
+  description: "Administración legal profesional",
 };
 
 export default function RootLayout({

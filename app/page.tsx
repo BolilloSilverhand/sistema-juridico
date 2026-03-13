@@ -1,17 +1,11 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
-import {
-  FileCheck,
-  FileText,
-  Landmark,
-  LayoutDashboard,
-  Scale,
-  Users,
-} from 'lucide-react';
+import { FileCheck, FileText, Landmark, LayoutDashboard, LogOut, Scale, Users } from 'lucide-react';
 import Clientes from '@/components/Clientes';
 import Dashboard from '@/components/Dashboard';
 import Expedientes from '@/components/Expedientes';
+import Login from '@/components/Login';
 import Movimientos from '@/components/Movimientos';
 import TribunalLaboral from '@/components/TribunalLaboral';
 
@@ -19,6 +13,7 @@ type Section = 'dashboard' | 'expedientes' | 'movimientos' | 'clientes' | 'tribu
 
 export default function Home() {
   const [activeSection, setActiveSection] = useState<Section>('dashboard');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const navigation = [
     { id: 'dashboard' as Section, name: 'Panel de Control', icon: LayoutDashboard },
@@ -45,16 +40,30 @@ export default function Home() {
     }
   };
 
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 animate-slide-in-up">
       <header className="bg-blue-900 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-3">
-            <Scale className="w-10 h-10" />
-            <div>
-              <h1 className="text-2xl font-bold">Sistema de Gestion Juridica</h1>
-              <p className="text-sm text-blue-100">Administracion Legal Profesional</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Scale className="w-10 h-10" />
+              <div>
+                <h1 className="text-2xl font-bold">Sistema de Gestión Jurídica</h1>
+                <p className="text-sm text-blue-100">Administración Legal Profesional</p>
+              </div>
             </div>
+
+            <button
+              onClick={() => setIsAuthenticated(false)}
+              className="flex items-center gap-2 bg-blue-800 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              Cerrar sesión
+            </button>
           </div>
         </div>
       </header>
@@ -87,9 +96,7 @@ export default function Home() {
 
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-sm text-gray-600">
-            Sistema de Gestion Juridica - {new Date().getFullYear()}
-          </p>
+          <p className="text-center text-sm text-gray-600">Sistema de Gestión Jurídica - {new Date().getFullYear()}</p>
         </div>
       </footer>
     </div>

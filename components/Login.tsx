@@ -1,8 +1,7 @@
 ﻿'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Scale, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Scale } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -21,24 +20,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (signInError) {
-        setError(signInError.message);
-      } else {
-        setEmail('');
-        setPassword('');
-        onLoginSuccess();
-      }
-    } catch {
-      setError('Error al iniciar sesiÃ³n');
-    } finally {
+    // Demo frontend only: no backend validation.
+    setTimeout(() => {
       setLoading(false);
-    }
+      setEmail('');
+      setPassword('');
+      onLoginSuccess();
+    }, 250);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -46,32 +34,20 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password
-      });
-
-      if (signUpError) {
-        setError(signUpError.message);
-      } else {
-        setError('');
-        setEmail('');
-        setPassword('');
-        setIsLogin(true);
-      }
-    } catch {
-      setError('Error al crear la cuenta');
-    } finally {
+    // Demo frontend only: simulate account creation and return to login mode.
+    setTimeout(() => {
       setLoading(false);
-    }
+      setEmail('');
+      setPassword('');
+      setIsLogin(true);
+    }, 250);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     if (isLogin) {
-      handleLogin(e);
+      void handleLogin(e);
     } else {
-      handleRegister(e);
+      void handleRegister(e);
     }
   };
 
@@ -82,7 +58,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           <div className="bg-blue-900 px-6 py-8 text-white">
             <div className="flex items-center justify-center gap-3 mb-2">
               <Scale className="w-8 h-8" />
-              <h1 className="text-2xl font-bold">Gestión Jurí­dica</h1>
+              <h1 className="text-2xl font-bold">Gestión Jurídica</h1>
             </div>
             <p className="text-center text-blue-100 text-sm">Administración Legal Profesional</p>
           </div>
@@ -96,9 +72,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Correo Electrónico
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Correo Electrónico</label>
                 <input
                   type="email"
                   value={email}
@@ -110,9 +84,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -120,18 +92,14 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent transition-all"
-                    placeholder="Tu contraseña"
+                    placeholder="********"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
@@ -146,9 +114,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </form>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <p className="text-center text-sm text-gray-600 mb-4">
-                {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
-              </p>
+              <p className="text-center text-sm text-gray-600 mb-4">{isLogin ? '¿No tienes cuenta?' : 'Ya tienes cuenta?'}</p>
               <button
                 onClick={() => {
                   setIsLogin(!isLogin);
@@ -158,17 +124,14 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 }}
                 className="w-full text-blue-900 font-medium py-2 rounded-lg hover:bg-blue-50 transition-all border border-blue-900"
               >
-                {isLogin ? 'Crear una cuenta' : 'Iniciar sesión'}
+                {isLogin ? 'Crear una cuenta' : 'Iniciar sesion'}
               </button>
             </div>
           </div>
         </div>
 
-        <p className="text-center text-blue-100 text-xs mt-6">
-          Sistema seguro de gestión legal © 2026
-        </p>
+        <p className="text-center text-blue-100 text-xs mt-6">Sistema seguro de gestión legal - 2026</p>
       </div>
     </div>
   );
 }
-
