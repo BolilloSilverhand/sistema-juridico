@@ -14,8 +14,12 @@ export default function Clientes() {
     nombre: '',
     monto_pactado: ''
   });
-  const [newMovimiento, setNewMovimiento] = useState({
-    tipo: 'cargo' as const,
+  const [newMovimiento, setNewMovimiento] = useState<{
+    tipo: 'cargo' | 'abono';
+    monto: string;
+    descripcion: string;
+  }>({
+    tipo: 'cargo',
     monto: '',
     descripcion: ''
   });
