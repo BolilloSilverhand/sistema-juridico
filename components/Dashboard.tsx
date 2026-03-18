@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { FileText, Users, FileCheck, Landmark, TrendingUp } from 'lucide-react';
 
@@ -9,6 +9,17 @@ interface Stats {
   tribunales: number;
   expedientesActivos: number;
 }
+
+type StatCard = {
+  title: string;
+  color: string;
+  iconBg: string;
+  href?: string;
+  icon?: typeof FileText;
+  value?: number;
+  imageSrc?: string;
+  imageAlt?: string;
+};
 
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats>({
@@ -41,7 +52,34 @@ export default function Dashboard() {
     });
   };
 
-  const statCards = [
+  const statCards: StatCard[] = [
+    {
+      title: 'Poder en Linea',
+      imageSrc: '/pel.png',
+      imageAlt: 'Poder en Linea',
+      href: 'https://poderenlinea.gob.mx/auth/login',
+      color: 'bg-lime-50 text-lime-900',
+      iconBg: 'bg-lime-100',
+      icon: FileText
+    },
+    {
+      title: 'Portal de Servicios en Linea del Poder Judicial de la Federacion',
+      imageSrc: '/pjf.png',
+      imageAlt: 'Portal de Servicios en Linea del Poder Judicial de la Federacion',
+      href: 'https://www.serviciosenlinea.pjf.gob.mx/juicioenlinea',
+      color: 'bg-cyan-50 text-cyan-900',
+      iconBg: 'bg-cyan-100',
+      icon: FileText
+    },
+    {
+      title: 'Suprema Corte de Justicia de la Nacion',
+      imageSrc: '/scjn.png',
+      imageAlt: 'Suprema Corte de Justicia de la Nacion',
+      href: 'https://www.scjn.gob.mx',
+      color: 'bg-violet-50 text-violet-900',
+      iconBg: 'bg-violet-100',
+      icon: FileText
+    },
     {
       title: 'Total Expedientes',
       value: stats.expedientes,
@@ -83,40 +121,63 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Panel de Control</h2>
-        <p className="text-gray-600">Resumen general de gestión jurídica</p>
+        <p className="text-gray-600">Resumen general de gestion juridica</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
+          const cardContent = stat.imageSrc ? (
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-bold text-left max-w-[60%]">{stat.title}</p>
+              <img src={stat.imageSrc} alt={stat.imageAlt} className="h-24 w-auto object-contain flex-shrink-0" />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium opacity-80">{stat.title}</p>
+                <p className="text-3xl font-bold mt-2">{stat.value}</p>
+              </div>
+              <div className={`${stat.iconBg} p-3 rounded-lg`}>
+                {Icon && <Icon className="w-8 h-8" />}
+              </div>
+            </div>
+          );
+
+          if (stat.href) {
+            return (
+              <a
+                key={index}
+                href={stat.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${stat.color} rounded-lg shadow-md p-6 border border-gray-200 transition-transform hover:scale-105 block`}
+              >
+                {cardContent}
+              </a>
+            );
+          }
+
           return (
             <div
               key={index}
               className={`${stat.color} rounded-lg shadow-md p-6 border border-gray-200 transition-transform hover:scale-105`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium opacity-80">{stat.title}</p>
-                  <p className="text-3xl font-bold mt-2">{stat.value}</p>
-                </div>
-                <div className={`${stat.iconBg} p-3 rounded-lg`}>
-                  <Icon className="w-8 h-8" />
-                </div>
-              </div>
+              {cardContent}
             </div>
           );
         })}
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">Bienvenido al Sistema de Gestión Jurídica</h3>
+        <h3 className="text-lg font-semibold mb-4 text-gray-800">Bienvenido al Sistema de Gestion Juridica</h3>
         <div className="space-y-3 text-gray-700">
-          <p>Este sistema le permite gestionar todos los aspectos de su práctica legal:</p>
+          <p>Este sistema le permite gestionar todos los aspectos de su practica legal:</p>
           <ul className="list-disc list-inside space-y-2 ml-4">
-            <li><strong>Expedientes:</strong> Registre y dé seguimiento a todos sus casos legales con información completa de partes, juzgados, estatus y notas.</li>
-            <li><strong>Movimientos:</strong> Lleve un registro cronológico de todas las actuaciones en cada expediente.</li>
-            <li><strong>Clientes:</strong> Mantenga una base de datos completa de sus clientes con toda su información de contacto.</li>
-            <li><strong>Tribunal Laboral:</strong> Administre el directorio de tribunales con sus datos de contacto y ubicación.</li>
+            <li><strong>Expedientes:</strong> Registre y de seguimiento a todos sus casos legales con informacion completa de partes, juzgados, estatus y notas.</li>
+            <li><strong>Movimientos:</strong> Lleve un registro cronologico de todas las actuaciones en cada expediente.</li>
+            <li><strong>Clientes:</strong> Mantenga una base de datos completa de sus clientes con toda su informacion de contacto.</li>
+            <li><strong>Tribunal Laboral:</strong> Administre el directorio de tribunales con sus datos de contacto y ubicacion.</li>
           </ul>
         </div>
       </div>
