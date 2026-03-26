@@ -1,199 +1,358 @@
-import { useState, useEffect } from 'react';
-import { supabase, type Cliente, type ClienteMovimiento, type Expediente } from '../lib/supabase';
-import { Plus, Users, Search, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+﻿
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+import { useEffect, useState } from 'react';
+import { ChevronDown, ChevronUp, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import type { AuthUser } from '@/lib/services/auth';
+import ClientListItem from '@/components/ClientListItem';
+import {
+  clientsService,
+  ClientsServiceError,
+  type Client,
+  type ClientTransaction,
+  type UpdateClientPayload,
+} from '@/lib/services/clients';
 
-const initialClientes: Cliente[] = [
-  {
-    id: 'cli-1',
-    nombre: 'Roberto Mendez',
-    email: 'roberto@example.com',
-    telefono: '555-333-1010',
-    direccion: 'Zona Norte',
-    monto_pactado: 15000,
-    total_adeudo: 9000,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'cli-2',
-    nombre: 'Lucia Herrera',
-    email: 'lucia@example.com',
-    telefono: '555-444-2020',
-    direccion: 'Col. Reforma',
-    monto_pactado: 10000,
-    total_adeudo: 4000,
-    created_at: new Date().toISOString(),
-  },
-];
+interface ClientesProps {
+  currentUser: AuthUser | null;
+}
 
-const initialExpedientes: Expediente[] = [
-  {
-    id: 'exp-cli-1',
-    numero_expediente: 'EXP-2026-021',
-    partes: 'Roberto Mendez vs Taller Omega',
-    juzgado: 'Juzgado Tercero',
-    estatus: 'Activo',
-    notas: 'Seguimiento semanal',
-    cliente_id: 'cli-1',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
+type Notice = {
+  type: 'success' | 'error';
+  text: string;
+};
 
-const initialMovimientos: ClienteMovimiento[] = [
-  {
-    id: 'cm-1',
-    cliente_id: 'cli-1',
-    tipo: 'cargo',
-    monto: 3000,
-    descripcion: 'Apertura de expediente',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'cm-2',
-    cliente_id: 'cli-1',
-    tipo: 'abono',
-    monto: 1000,
-    descripcion: 'Primer abono',
-    created_at: new Date().toISOString(),
-  },
-];
-
-export default function Clientes() {
-  const [clientes, setClientes] = useState<Cliente[]>(initialClientes);
-  const [expedientes, setExpedientes] = useState<Expediente[]>(initialExpedientes);
-  const [movimientos, setMovimientos] = useState<ClienteMovimiento[]>(initialMovimientos);
-  const [showForm, setShowForm] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+export default function Clientes({ currentUser }: ClientesProps) {
+  const [clientes, setClientes] = useState<Client[]>([]);
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
-  const [showMovForm, setShowMovForm] = useState<string | null>(null);
+  const [clientDetails, setClientDetails] = useState<Record<string, Client>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [showTransactionFormClientId, setShowTransactionFormClientId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
   const [formData, setFormData] = useState({
-    nombre: '',
-    monto_pactado: ''
+    name: '',
+    last_name: '',
+    agreed_amount: '',
   });
-  const [newMovimiento, setNewMovimiento] = useState<{
-    tipo: 'cargo' | 'abono';
-    monto: string;
-    descripcion: string;
-  }>({
-    tipo: 'cargo',
-    monto: '',
-    descripcion: ''
+
+  const [editData, setEditData] = useState({
+    name: '',
+    last_name: '',
+    agreed_amount: '',
+    total_debt: '',
   });
+
+  const [transactionForm, setTransactionForm] = useState({
+    transaction_type: 'Cargo' as 'Cargo' | 'Abono',
+    amount: '',
+    description: '',
+  });
+
+  const resolveUserId = () => {
+    const userIdFromSession = Number(currentUser?.id);
+    if (Number.isFinite(userIdFromSession)) return userIdFromSession;
+    return null;
+  };
+
+  const getClientTransactions = (clientId: string): ClientTransaction[] => {
+    const detail = clientDetails[clientId];
+    return detail?.transactions ?? [];
+  };
+
+  const getTransactionType = (transaction: ClientTransaction) =>
+    (transaction.transaction_type ?? transaction.type ?? '').toString();
+
+  const updateClientDebtInState = (clientId: string, clientTotalDebt: number) => {
+    setClientes((prev) =>
+      prev.map((client) => (client.id === clientId ? { ...client, total_debt: clientTotalDebt } : client)),
+    );
+
+    setClientDetails((prev) => {
+      const detail = prev[clientId];
+      if (!detail) return prev;
+      return {
+        ...prev,
+        [clientId]: {
+          ...detail,
+          total_debt: clientTotalDebt,
+        },
+      };
+    });
+  };
+
+  const fetchClients = async () => {
+    setValidationErrors([]);
+    const userId = resolveUserId();
+
+    if (!userId) {
+      setClientes([]);
+      setNotice({ type: 'error', text: 'No se puede listar clientes sin user_id del usuario autenticado.' });
+      return;
+    }
+
+    try {
+      const data = await clientsService.getClients({
+        user_id: userId,
+        search: searchTerm || undefined,
+      });
+      setClientes(data);
+    } catch (error) {
+      if (error instanceof ClientsServiceError) {
+        setNotice({ type: 'error', text: error.message });
+        return;
+      }
+      setNotice({ type: 'error', text: 'No se pudieron cargar los clientes.' });
+    }
+  };
 
   useEffect(() => {
-    fetchClientes();
-    fetchExpedientes();
-    fetchMovimientos();
-  }, []);
+    void fetchClients();
+  }, [searchTerm, currentUser?.id]);
 
-  const fetchClientes = async () => {
-    const { data } = await supabase
-      .from('clientes')
-      .select('*')
-      .order('nombre');
-    if (data) setClientes(data);
-  };
-
-  const fetchExpedientes = async () => {
-    const { data } = await supabase
-      .from('expedientes')
-      .select('*');
-    if (data) setExpedientes(data);
-  };
-
-  const fetchMovimientos = async () => {
-    const { data } = await supabase
-      .from('cliente_movimientos')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (data) setMovimientos(data);
-  };
-
-  const getClienteMovimientos = (clienteId: string) => {
-    return movimientos.filter(m => m.cliente_id === clienteId);
-  };
-
-  const getClienteExpediente = (clienteId: string) => {
-    return expedientes.find(e => e.cliente_id === clienteId);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('clientes').insert([{
-      nombre: formData.nombre,
-      monto_pactado: parseFloat(formData.monto_pactado) || 0,
-      total_adeudo: parseFloat(formData.monto_pactado) || 0
-    }]);
+    setValidationErrors([]);
+    setNotice(null);
 
-    if (!error) {
-      setFormData({
-        nombre: '',
-        monto_pactado: ''
+    const userId = resolveUserId();
+    if (!userId) {
+      setNotice({ type: 'error', text: 'Define un user_id valido para crear cliente.' });
+      return;
+    }
+
+    try {
+      await clientsService.createClient({
+        user_id: userId,
+        name: formData.name,
+        last_name: formData.last_name || undefined,
+        agreed_amount: Number(formData.agreed_amount),
       });
+
+      setFormData({ name: '', last_name: '', agreed_amount: '' });
       setShowForm(false);
-      fetchClientes();
+      setNotice({ type: 'success', text: 'Cliente creado correctamente.' });
+      await fetchClients();
+    } catch (error) {
+      if (error instanceof ClientsServiceError) {
+        setNotice({ type: 'error', text: error.message });
+        const flatErrors = error.validationErrors ? Object.values(error.validationErrors).flat() : [];
+        setValidationErrors(flatErrors);
+        return;
+      }
+      setNotice({ type: 'error', text: 'No se pudo crear el cliente.' });
     }
   };
 
-  const handleAddMovimiento = async (e: React.FormEvent, clienteId: string) => {
-    e.preventDefault();
-    const monto = parseFloat(newMovimiento.monto);
+  const handleExpandClient = async (clientId: string) => {
+    const nextValue = expandedClientId === clientId ? null : clientId;
+    setExpandedClientId(nextValue);
 
-    const { error: movError } = await supabase.from('cliente_movimientos').insert([{
-      cliente_id: clienteId,
-      tipo: newMovimiento.tipo,
-      monto,
-      descripcion: newMovimiento.descripcion
-    }]);
+    if (!nextValue) return;
 
-    if (!movError) {
-      const cliente = clientes.find(c => c.id === clienteId);
-      if (cliente) {
-        const newAdeudo = newMovimiento.tipo === 'cargo'
-          ? cliente.total_adeudo + monto
-          : Math.max(0, cliente.total_adeudo - monto);
-
-        await supabase
-          .from('clientes')
-          .update({ total_adeudo: newAdeudo })
-          .eq('id', clienteId);
+    try {
+      const detail = await clientsService.getClientById(clientId);
+      setClientDetails((prev) => ({ ...prev, [clientId]: detail }));
+    } catch (error) {
+      if (error instanceof ClientsServiceError) {
+        setNotice({ type: 'error', text: error.message });
+        return;
       }
+      setNotice({ type: 'error', text: 'No se pudo cargar el detalle del cliente.' });
+    }
+  };
 
-      setNewMovimiento({
-        tipo: 'cargo',
-        monto: '',
-        descripcion: ''
+  const handleStartEdit = async (clientId: string) => {
+    setValidationErrors([]);
+    setNotice(null);
+
+    try {
+      const detail = clientDetails[clientId] ?? (await clientsService.getClientById(clientId));
+      setClientDetails((prev) => ({ ...prev, [clientId]: detail }));
+      setEditingClientId(clientId);
+      setEditData({
+        name: detail.name,
+        last_name: detail.last_name ?? '',
+        agreed_amount: String(detail.agreed_amount),
+        total_debt: String(detail.total_debt),
       });
-      setShowMovForm(null);
-      fetchMovimientos();
-      fetchClientes();
-    }
-  };
-
-  const handleDeleteMovimiento = async (movId: string) => {
-    const movimiento = movimientos.find(m => m.id === movId);
-    if (movimiento) {
-      const cliente = clientes.find(c => c.id === movimiento.cliente_id);
-      if (cliente) {
-        const newAdeudo = movimiento.tipo === 'cargo'
-          ? Math.max(0, cliente.total_adeudo - movimiento.monto)
-          : cliente.total_adeudo + movimiento.monto;
-
-        await supabase
-          .from('clientes')
-          .update({ total_adeudo: newAdeudo })
-          .eq('id', cliente.id);
+    } catch (error) {
+      if (error instanceof ClientsServiceError) {
+        setNotice({ type: 'error', text: error.message });
+        return;
       }
+      setNotice({ type: 'error', text: 'No se pudo cargar el cliente para editar.' });
     }
+  };
+  const handleUpdateClient = async (e: React.FormEvent, clientId: string) => {
+    e.preventDefault();
+    setValidationErrors([]);
+    setNotice(null);
 
-    await supabase.from('cliente_movimientos').delete().eq('id', movId);
-    fetchMovimientos();
-    fetchClientes();
+    const payload: UpdateClientPayload = {
+      name: editData.name || undefined,
+      last_name: editData.last_name || undefined,
+    };
+
+    const userId = resolveUserId();
+    if (userId) payload.user_id = userId;
+
+    try {
+      await clientsService.updateClient(clientId, payload);
+      setEditingClientId(null);
+      setNotice({ type: 'success', text: 'Cliente actualizado correctamente.' });
+      await fetchClients();
+
+      const detail = await clientsService.getClientById(clientId);
+      setClientDetails((prev) => ({ ...prev, [clientId]: detail }));
+    } catch (error) {
+      if (error instanceof ClientsServiceError) {
+        setNotice({ type: 'error', text: error.message });
+        const flatErrors = error.validationErrors ? Object.values(error.validationErrors).flat() : [];
+        setValidationErrors(flatErrors);
+        return;
+      }
+      setNotice({ type: 'error', text: 'No se pudo actualizar el cliente.' });
+    }
   };
 
-  const filteredClientes = clientes.filter(cliente =>
-    cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleDeleteClient = async (clientId: string, clientName: string) => {
+    const confirmed = window.confirm(`Se eliminara ${clientName}. Esta accion no se puede deshacer.`);
+    if (!confirmed) return;
+
+    setValidationErrors([]);
+    setNotice(null);
+
+    try {
+      const result = await clientsService.deleteClient(clientId);
+      setNotice({ type: 'success', text: result.message || 'Cliente eliminado correctamente.' });
+
+      if (expandedClientId === clientId) {
+        setExpandedClientId(null);
+      }
+      if (editingClientId === clientId) {
+        setEditingClientId(null);
+      }
+
+      setClientDetails((prev) => {
+        const next = { ...prev };
+        delete next[clientId];
+        return next;
+      });
+
+      await fetchClients();
+    } catch (error) {
+      if (error instanceof ClientsServiceError) {
+        setNotice({ type: 'error', text: error.message });
+        return;
+      }
+      setNotice({ type: 'error', text: 'No se pudo eliminar el cliente.' });
+    }
+  };
+
+  const handleCreateTransaction = async (e: React.FormEvent, clientId: string) => {
+    e.preventDefault();
+    setValidationErrors([]);
+    setNotice(null);
+
+    if (!transactionForm.transaction_type) {
+      setNotice({ type: 'error', text: 'Selecciona el tipo de transaccion.' });
+      return;
+    }
+
+    const amount = Number(transactionForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setNotice({ type: 'error', text: 'El monto debe ser mayor a 0.' });
+      return;
+    }
+
+    const userId = resolveUserId();
+    if (!userId) {
+      setNotice({ type: 'error', text: 'Define un user_id valido para registrar transacciones.' });
+      return;
+    }
+
+    try {
+      const result = await clientsService.createClientTransaction({
+        user_id: userId,
+        client_id: clientId,
+        transaction_type: transactionForm.transaction_type,
+        amount,
+        description: transactionForm.description || undefined,
+      });
+
+      updateClientDebtInState(clientId, result.clientTotalDebt);
+
+      setClientDetails((prev) => {
+        const detail = prev[clientId];
+        if (!detail) return prev;
+        return {
+          ...prev,
+          [clientId]: {
+            ...detail,
+            total_debt: result.clientTotalDebt,
+            transactions: [result.transaction, ...(detail.transactions ?? [])],
+          },
+        };
+      });
+
+      setTransactionForm({ transaction_type: 'Cargo', amount: '', description: '' });
+      setShowTransactionFormClientId(null);
+      setNotice({ type: 'success', text: result.message || 'Transaccion creada correctamente.' });
+
+      const detail = await clientsService.getClientById(clientId);
+      setClientDetails((prev) => ({ ...prev, [clientId]: detail }));
+      await fetchClients();
+    } catch (error) {
+      if (error instanceof ClientsServiceError) {
+        setNotice({ type: 'error', text: error.message });
+        const flatErrors = error.validationErrors ? Object.values(error.validationErrors).flat() : [];
+        setValidationErrors(flatErrors);
+        return;
+      }
+      setNotice({ type: 'error', text: 'No se pudo crear la transaccion.' });
+    }
+  };
+
+  const handleDeleteTransaction = async (clientId: string, transactionId: string) => {
+    setValidationErrors([]);
+    setNotice(null);
+
+    try {
+      const result = await clientsService.deleteClientTransaction(transactionId);
+
+      updateClientDebtInState(clientId, result.clientTotalDebt);
+
+      setClientDetails((prev) => {
+        const detail = prev[clientId];
+        if (!detail) return prev;
+        return {
+          ...prev,
+          [clientId]: {
+            ...detail,
+            total_debt: result.clientTotalDebt,
+            transactions: (detail.transactions ?? []).filter((tx) => tx.id !== result.transactionId),
+          },
+        };
+      });
+
+      setNotice({ type: 'success', text: result.message || 'Transaccion eliminada correctamente.' });
+
+      const detail = await clientsService.getClientById(clientId);
+      setClientDetails((prev) => ({ ...prev, [clientId]: detail }));
+      await fetchClients();
+    } catch (error) {
+      if (error instanceof ClientsServiceError) {
+        setNotice({ type: 'error', text: error.message });
+        const flatErrors = error.validationErrors ? Object.values(error.validationErrors).flat() : [];
+        setValidationErrors(flatErrors);
+        return;
+      }
+      setNotice({ type: 'error', text: 'No se pudo eliminar la transaccion.' });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -211,33 +370,67 @@ export default function Clientes() {
         </button>
       </div>
 
+      {notice?.text && (
+        <div
+          className={`p-3 rounded-lg border text-sm ${
+            notice.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          {notice.text}
+          {validationErrors.length > 0 && (
+            <ul className="mt-2 list-disc list-inside space-y-1 text-sm">
+              {validationErrors.map((validationError, index) => (
+                <li key={`${validationError}-${index}`}>{validationError}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {showForm && (
         <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Nuevo Cliente</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre del Cliente *
+          <form onSubmit={handleCreateClient} className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="client-name" className="block text-sm font-medium text-gray-700 mb-1">
+                Nombre *
               </label>
               <input
+                id="client-name"
                 type="text"
                 required
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-900 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="client-last-name" className="block text-sm font-medium text-gray-700 mb-1">
+                Apellido
+              </label>
+              <input
+                id="client-last-name"
+                type="text"
+                value={formData.last_name}
+                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-900 focus:border-transparent"
               />
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Monto Pactado (Honorarios) *
+              <label htmlFor="client-agreed-amount" className="block text-sm font-medium text-gray-700 mb-1">
+                Monto pactado *
               </label>
               <input
+                id="client-agreed-amount"
                 type="number"
                 step="0.01"
+                min="0"
                 required
-                value={formData.monto_pactado}
-                onChange={(e) => setFormData({ ...formData, monto_pactado: e.target.value })}
+                value={formData.agreed_amount}
+                onChange={(e) => setFormData({ ...formData, agreed_amount: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-900 focus:border-transparent"
                 placeholder="0.00"
               />
@@ -251,10 +444,7 @@ export default function Clientes() {
               >
                 Cancelar
               </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800"
-              >
+              <button type="submit" className="px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800">
                 Guardar Cliente
               </button>
             </div>
@@ -263,40 +453,42 @@ export default function Clientes() {
       )}
 
       <div className="bg-white rounded-lg shadow-md border border-gray-200">
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <label htmlFor="search-clients" className="sr-only">
+              Buscar clientes por nombre o apellido
+            </label>
             <input
+              id="search-clients"
               type="text"
-              placeholder="Buscar clientes..."
+              placeholder="Buscar clientes por nombre o apellido..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-900 focus:border-transparent"
             />
           </div>
+
         </div>
 
         <div className="divide-y divide-gray-200">
-          {filteredClientes.map((cliente) => {
-            const expediente = getClienteExpediente(cliente.id);
+          {clientes.length === 0 && (
+            <div className="p-6 text-sm text-gray-500">No hay clientes para este usuario.</div>
+          )}
+          {clientes.map((cliente) => {
+            const fullName = `${cliente.name} ${cliente.last_name ?? ''}`.trim();
             return (
               <div key={cliente.id} className="border-b border-gray-200 last:border-b-0">
                 <button
-                  onClick={() => setExpandedClientId(expandedClientId === cliente.id ? null : cliente.id)}
+                  onClick={() => void handleExpandClient(cliente.id)}
                   className="w-full px-6 py-4 hover:bg-gray-50 transition-colors flex items-center justify-between"
                 >
                   <div className="flex-1 text-left">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{cliente.nombre}</h3>
-                        {expediente && (
-                          <p className="text-sm text-gray-600">Exp: {expediente.numero_expediente}</p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          Adeudo: ${cliente.total_adeudo.toFixed(2)} / Pactado: ${cliente.monto_pactado.toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
+                    <ClientListItem
+                      fullName={fullName}
+                      totalDebt={Number(cliente.total_debt)}
+                      agreedAmount={Number(cliente.agreed_amount)}
+                    />
                   </div>
                   {expandedClientId === cliente.id ? (
                     <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -307,119 +499,245 @@ export default function Clientes() {
 
                 {expandedClientId === cliente.id && (
                   <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 space-y-4">
-                    <div>
-                      <h4 className="font-semibold text-gray-800 mb-3">Gestión de Honorarios</h4>
-
-                      <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
-                        <div className="grid grid-cols-3 gap-4 text-center">
+                    {editingClientId === cliente.id ? (
+                      <form onSubmit={(e) => void handleUpdateClient(e, cliente.id)} className="bg-white p-4 rounded-lg border border-gray-200 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <p className="text-xs text-gray-600 mb-1">Monto Pactado</p>
-                            <p className="text-lg font-bold text-blue-900">${cliente.monto_pactado.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600 mb-1">Adeudo Actual</p>
-                            <p className={`text-lg font-bold ${cliente.total_adeudo > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              ${cliente.total_adeudo.toFixed(2)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600 mb-1">Pagado</p>
-                            <p className="text-lg font-bold text-green-600">
-                              ${Math.max(0, cliente.monto_pactado - cliente.total_adeudo).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 mb-4">
-                        <h5 className="text-sm font-medium text-gray-700">Movimientos</h5>
-                        {getClienteMovimientos(cliente.id).map((mov) => (
-                          <div key={mov.id} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-start">
-                            <div>
-                              <p className={`text-sm font-medium ${mov.tipo === 'cargo' ? 'text-red-600' : 'text-green-600'}`}>
-                                {mov.tipo === 'cargo' ? '+ Cargo' : '- Abono'}: ${mov.monto.toFixed(2)}
-                              </p>
-                              {mov.descripcion && <p className="text-xs text-gray-600 mt-1">{mov.descripcion}</p>}
-                              <p className="text-xs text-gray-500 mt-1">{new Date(mov.created_at).toLocaleDateString('es-ES')}</p>
-                            </div>
-                            <button
-                              onClick={() => handleDeleteMovimiento(mov.id)}
-                              className="text-red-600 hover:text-red-700 p-1"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-
-                      {showMovForm === cliente.id ? (
-                        <form onSubmit={(e) => handleAddMovimiento(e, cliente.id)} className="bg-white p-3 rounded-lg border border-gray-300 space-y-3">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Tipo *
-                              </label>
-                              <select
-                                value={newMovimiento.tipo}
-                                onChange={(e) => setNewMovimiento({ ...newMovimiento, tipo: e.target.value as 'cargo' | 'abono' })}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-900 focus:border-transparent"
-                              >
-                                <option value="cargo">Cargo</option>
-                                <option value="abono">Abono</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Monto *
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                required
-                                value={newMovimiento.monto}
-                                onChange={(e) => setNewMovimiento({ ...newMovimiento, monto: e.target.value })}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-900 focus:border-transparent"
-                                placeholder="0.00"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Descripción
+                            <label htmlFor={`edit-name-${cliente.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                              Nombre
                             </label>
                             <input
-                              type="text"
-                              value={newMovimiento.descripcion}
-                              onChange={(e) => setNewMovimiento({ ...newMovimiento, descripcion: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-900 focus:border-transparent"
-                              placeholder="Ej: Primer pago, Acuerdo..."
+                              id={`edit-name-${cliente.id}`}
+                              value={editData.name}
+                              onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              required
                             />
                           </div>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setShowMovForm(null)}
-                              className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              type="submit"
-                              className="flex-1 px-2 py-1 bg-blue-900 text-white rounded text-sm hover:bg-blue-800"
-                            >
-                              Guardar
-                            </button>
+                          <div>
+                            <label htmlFor={`edit-last-name-${cliente.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                              Apellido
+                            </label>
+                            <input
+                              id={`edit-last-name-${cliente.id}`}
+                              value={editData.last_name}
+                              onChange={(e) => setEditData({ ...editData, last_name: e.target.value })}
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
                           </div>
-                        </form>
-                      ) : (
-                        <button
-                          onClick={() => setShowMovForm(cliente.id)}
-                          className="w-full px-3 py-2 border border-blue-900 text-blue-900 rounded-lg text-sm hover:bg-blue-50"
-                        >
-                          + Añadir Cargo o Abono
-                        </button>
-                      )}
-                    </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label htmlFor={`edit-agreed-amount-${cliente.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                              Monto pactado
+                            </label>
+                            <input
+                              id={`edit-agreed-amount-${cliente.id}`}
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={editData.agreed_amount}
+                              readOnly
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100"
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor={`edit-total-debt-${cliente.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                              Total deuda (solo lectura)
+                            </label>
+                            <input
+                              id={`edit-total-debt-${cliente.id}`}
+                              value={editData.total_debt}
+                              readOnly
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm bg-gray-100"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingClientId(null)}
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                          >
+                            Cancelar
+                          </button>
+                          <button type="submit" className="flex-1 px-2 py-1 bg-blue-900 text-white rounded text-sm hover:bg-blue-800">
+                            Editar Cliente
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-white p-4 rounded-lg border border-gray-200">
+                          <div className="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                              <p className="text-xs text-gray-600 mb-1">Monto pactado</p>
+                              <p className="text-lg font-bold text-blue-900">${Number(cliente.agreed_amount).toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600 mb-1">Adeudo actual</p>
+                              <p className={`text-lg font-bold ${Number(cliente.total_debt) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                ${Number(cliente.total_debt).toFixed(2)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600 mb-1">Pagado</p>
+                              <p className="text-lg font-bold text-green-600">
+                                ${Math.max(0, Number(cliente.agreed_amount) - Number(cliente.total_debt)).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="font-semibold text-gray-800 mb-3">Gestión de honorarios</h4>
+                          <div className="space-y-2 mb-4">
+                            {getClientTransactions(cliente.id).length === 0 && (
+                              <div className="bg-white p-3 rounded-lg border border-gray-200 text-sm text-gray-500">
+                                Sin transacciones
+                              </div>
+                            )}
+
+                            {getClientTransactions(cliente.id).map((transaction) => {
+                              const txType = getTransactionType(transaction).toLowerCase();
+                              const txLabel = txType === 'cargo' ? '+ Cargo' : '- Abono';
+                              const txColor = txType === 'cargo' ? 'text-red-600' : 'text-green-600';
+
+                              return (
+                                <div
+                                  key={transaction.id}
+                                  className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-start"
+                                >
+                                  <div>
+                                    <p className={`text-sm font-medium ${txColor}`}>
+                                      {txLabel}: ${Number(transaction.amount).toFixed(2)}
+                                    </p>
+                                    {transaction.description && (
+                                      <p className="text-xs text-gray-600 mt-1">{transaction.description}</p>
+                                    )}
+                                    {transaction.created_at && (
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        {new Date(transaction.created_at).toLocaleDateString('es-ES')}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => void handleDeleteTransaction(cliente.id, transaction.id)}
+                                    aria-label="Eliminar transaccion"
+                                    title="Eliminar transaccion"
+                                    className="text-red-600 hover:text-red-700 p-1"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {showTransactionFormClientId === cliente.id ? (
+                            <form
+                              onSubmit={(e) => void handleCreateTransaction(e, cliente.id)}
+                              className="bg-white p-3 rounded-lg border border-gray-300 space-y-3"
+                            >
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label htmlFor={`tx-type-${cliente.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                                    Tipo *
+                                  </label>
+                                  <select
+                                    id={`tx-type-${cliente.id}`}
+                                    value={transactionForm.transaction_type}
+                                    onChange={(e) =>
+                                      setTransactionForm({
+                                        ...transactionForm,
+                                        transaction_type: e.target.value as 'Cargo' | 'Abono',
+                                      })
+                                    }
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-900 focus:border-transparent"
+                                  >
+                                    <option value="Cargo">Cargo</option>
+                                    <option value="Abono">Abono</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label htmlFor={`tx-amount-${cliente.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                                    Monto *
+                                  </label>
+                                  <input
+                                    id={`tx-amount-${cliente.id}`}
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    required
+                                    value={transactionForm.amount}
+                                    onChange={(e) => setTransactionForm({ ...transactionForm, amount: e.target.value })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-900 focus:border-transparent"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label htmlFor={`tx-description-${cliente.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                                  Descripcion
+                                </label>
+                                <input
+                                  id={`tx-description-${cliente.id}`}
+                                  type="text"
+                                  value={transactionForm.description}
+                                  onChange={(e) =>
+                                    setTransactionForm({ ...transactionForm, description: e.target.value })
+                                  }
+                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-900 focus:border-transparent"
+                                  placeholder="Ej: Primer pago, ajuste..."
+                                />
+                              </div>
+
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowTransactionFormClientId(null)}
+                                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="submit"
+                                  className="flex-1 px-2 py-1 bg-blue-900 text-white rounded text-sm hover:bg-blue-800"
+                                >
+                                  Guardar
+                                </button>
+                              </div>
+                            </form>
+                          ) : (
+                            <button
+                              onClick={() => setShowTransactionFormClientId(cliente.id)}
+                              className="w-full px-3 py-2 border border-blue-900 text-blue-900 rounded-lg text-sm hover:bg-blue-50"
+                            >
+                              + Añadir Cargo o Abono
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => void handleStartEdit(cliente.id)}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-blue-900 text-blue-900 rounded-lg text-sm hover:bg-blue-50"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            Editar cliente
+                          </button>
+                          <button
+                            onClick={() => void handleDeleteClient(cliente.id, fullName)}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-red-300 text-red-700 rounded-lg text-sm hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileCheck, FileText, Landmark, LayoutDashboard, LogOut, Scale, Users } from 'lucide-react';
 import Clientes from '@/components/Clientes';
 import Dashboard from '@/components/Dashboard';
@@ -8,12 +8,35 @@ import Expedientes from '@/components/Expedientes';
 import Login from '@/components/Login';
 import Movimientos from '@/components/Movimientos';
 import TribunalLaboral from '@/components/TribunalLaboral';
+import { AuthServiceError, authService, type AuthUser } from '@/lib/services/auth';
 
 type Section = 'dashboard' | 'expedientes' | 'movimientos' | 'clientes' | 'tribunal';
 
 export default function Home() {
   const [activeSection, setActiveSection] = useState<Section>('dashboard');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [authNotice, setAuthNotice] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const [isSessionReady, setIsSessionReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedUser = window.localStorage.getItem('auth_user');
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser) as AuthUser;
+        setCurrentUser(parsedUser);
+        setIsAuthenticated(true);
+      }
+    } catch {
+      window.localStorage.removeItem('auth_user');
+    } finally {
+      setIsSessionReady(true);
+    }
+  }, []);
 
   const navigation = [
     { id: 'dashboard' as Section, name: 'Panel de Control', icon: LayoutDashboard },
@@ -28,11 +51,11 @@ export default function Home() {
       case 'dashboard':
         return <Dashboard />;
       case 'expedientes':
-        return <Expedientes />;
+        return <Expedientes currentUser={currentUser} />;
       case 'movimientos':
         return <Movimientos />;
       case 'clientes':
-        return <Clientes />;
+        return <Clientes currentUser={currentUser} />;
       case 'tribunal':
         return <TribunalLaboral />;
       default:
@@ -40,8 +63,22 @@ export default function Home() {
     }
   };
 
+  if (!isSessionReady) {
+    return null;
+  }
+
   if (!isAuthenticated) {
-    return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;
+    return (
+      <Login
+        notice={authNotice}
+        onLoginSuccess={(user, message) => {
+          setCurrentUser(user);
+          setAuthNotice({ type: 'success', message });
+          setIsAuthenticated(true);
+          window.localStorage.setItem('auth_user', JSON.stringify(user));
+        }}
+      />
+    );
   }
 
   return (
@@ -54,15 +91,43 @@ export default function Home() {
               <div>
                 <h1 className="text-2xl font-bold">Sistema de Gestión Jurídica</h1>
                 <p className="text-sm text-blue-100">Administración Legal Profesional</p>
+                {(currentUser?.name || currentUser?.email) && (
+                  <p className="text-xs text-blue-100 mt-1">
+                    Buen día {currentUser.name ? `${currentUser.name} ` : ''}
+                  </p>
+                )}
               </div>
             </div>
 
             <button
-              onClick={() => setIsAuthenticated(false)}
+              onClick={async () => {
+                setIsLoggingOut(true);
+                try {
+                  const result = await authService.logout();
+
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.removeItem('auth_user');
+                    window.sessionStorage.clear();
+                  }
+
+                  setIsAuthenticated(false);
+                  setCurrentUser(null);
+                  setAuthNotice({ type: 'success', message: result.message });
+                } catch (err) {
+                  if (err instanceof AuthServiceError) {
+                    setAuthNotice({ type: 'error', message: err.message });
+                  } else {
+                    setAuthNotice({ type: 'error', message: 'No se pudo cerrar la sesion.' });
+                  }
+                } finally {
+                  setIsLoggingOut(false);
+                }
+              }}
+              disabled={isLoggingOut}
               className="flex items-center gap-2 bg-blue-800 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors"
             >
               <LogOut className="w-5 h-5" />
-              Cerrar sesión
+              {isLoggingOut ? 'Cerrando...' : 'Cerrar sesion'}
             </button>
           </div>
         </div>
@@ -92,7 +157,20 @@ export default function Home() {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{renderContent()}</main>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {authNotice?.message && (
+          <div
+            className={`mb-4 p-3 rounded-lg border text-sm ${
+              authNotice.type === 'success'
+                ? 'border-green-200 bg-green-50 text-green-700'
+                : 'border-red-200 bg-red-50 text-red-700'
+            }`}
+          >
+            {authNotice.message}
+          </div>
+        )}
+        {renderContent()}
+      </main>
 
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
